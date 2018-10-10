@@ -1,0 +1,219 @@
+	WX=12
+	WY=12
+	ddim vx,WX+1,WY
+	ddim vx_after,WX+1,WY	
+	ddim vy,WX,WY+1
+	ddim vy_after,WX,WY+1
+	ddim s,WX,WY
+	ddim p,WX,WY
+	ddim p_after,WX,WY
+	ddim rys,1024,2//粒子のx,y座標
+	delta_t=0.2//デルタT
+	Re=1000000.0//レイノルズ数
+	omega=1.8//加速係数
+	
+*main
+	//移流（一時風上差分）
+	gosub*adve
+	//粘性
+	gosub*viscosity
+	//外力
+	getkey key,1
+	if key:vx.(limit(mousex/40,2,WX-3)).(limit(mousey/40,2,WY-3))=0.99//クリックした時だけ1点の速度が0.99に固定される
+	//壁速度0に固定
+	gosub*set
+	//ダイバージェンス計算
+	gosub*div
+	//ポアソン方程式の項
+	gosub*poisson
+	//修正
+	gosub*rhs
+	//可視化
+	gosub*view
+	
+	await 10//10ms待ちます
+	goto*main
+
+
+
+//移流
+*adve
+	//まずはvxの更新から
+	repeat WX-2
+		i=cnt+1
+		repeat WY-2
+			j=cnt+1
+			u=vx.(i).(j)
+			v=( vx.(i-1).(j) + vx.(i).(j) + vx.(i-1).(j+1) + vx.(i).(j+1) )/4
+			//( ｕ>=0かつｖ>=0の場合 )
+			if (u>=0.0)&(v>=0.0){
+				vx_after.(i).(j) = vx.(i).(j) - u*(vx.(i).(j) - vx.(i-1).(j))*delta_t - v*(vx.(i).(j)-vx.(i).(j-1))*delta_t
+			}
+			//( ｕ<0かつｖ>=0の場合 )
+			if (u<0.0)&(v>=0.0){
+			vx_after.(i).(j) = vx.(i).(j) - u*(vx.(i+1).(j) - vx.(i).(j))*delta_t - v*(vx.(i).(j)-vx.(i).(j-1))*delta_t
+			}
+			//( ｕ>=0かつｖ<0の場合 )
+			if (u>=0.0)&(v<0.0){
+			vx_after.(i).(j) = vx.(i).(j) - u*(vx.(i).(j) - vx.(i-1).(j))*delta_t - v*(vx.(i).(j+1)-vx.(i).(j))*delta_t
+			}
+			//( ｕ<0かつｖ<0の場合 )
+			if (u<0.0)&(v<0.0){
+			vx_after.(i).(j) = vx.(i).(j) - u*(vx.(i+1).(j) - vx.(i).(j))*delta_t - v*(vx.(i).(j+1)-vx.(i).(j))*delta_t
+			}
+		loop
+	loop
+	//次にvyの更新
+	repeat WX-2
+		i=cnt+1
+		repeat WY-2
+			j=cnt+1
+			u=( vy.(i).(j-1) + vy.(i+1).(j-1) + vy.(i).(j) + vy.(i+1).(j) )/4
+			v=vy.(i).(j)
+			//( ｕ>=0かつｖ>=0の場合 )
+			if (u>=0.0)&(v>=0.0){
+				vy_after.(i).(j) = vy.(i).(j) - u*(vy.(i).(j) - vy.(i-1).(j))*delta_t - v*(vy.(i).(j)-vy.(i).(j-1))*delta_t
+			}
+			//( ｕ<0かつｖ>=0の場合 )
+			if (u<0.0)&(v>=0.0){
+			vy_after.(i).(j) = vy.(i).(j) - u*(vy.(i+1).(j) - vy.(i).(j))*delta_t - v*(vy.(i).(j)-vy.(i).(j-1))*delta_t
+			}
+			//( ｕ>=0かつｖ<0の場合 )
+			if (u>=0.0)&(v<0.0){
+			vy_after.(i).(j) = vy.(i).(j) - u*(vy.(i).(j) - vy.(i-1).(j))*delta_t - v*(vy.(i).(j+1)-vy.(i).(j))*delta_t
+			}
+			//( ｕ<0かつｖ<0の場合 )
+			if (u<0.0)&(v<0.0){
+			vy_after.(i).(j) = vy.(i).(j) - u*(vy.(i+1).(j) - vy.(i).(j))*delta_t - v*(vy.(i).(j+1)-vy.(i).(j))*delta_t
+			}
+		loop
+	loop
+	memcpy vx,vx_after,8*(WX+1)*WY
+	memcpy vy,vy_after,8*WX*(WY+1)
+	return
+
+//粘性
+*viscosity
+	repeat WX-2
+		i=cnt+1
+		repeat WY-2
+			j=cnt+1
+			vx_after.(i).(j)=vx.(i).(j)-1.0/Re*(vx.(i+1).(j)+vx.(i).(j+1)+vx.(i-1).(j)+vx.(i).(j-1))*delta_t
+			vy_after.(i).(j)=vy.(i).(j)-1.0/Re*(vy.(i+1).(j)+vy.(i).(j+1)+vy.(i-1).(j)+vy.(i).(j-1))*delta_t
+		loop
+	loop
+	memcpy vx,vx_after,8*(WX+1)*WY
+	memcpy vy,vy_after,8*WX*(WY+1)
+	return
+
+//壁の速度は0、を代入
+*set
+	repeat WX
+		i=cnt
+		repeat WY
+			j=cnt
+			if (i==0)|(i==WX-1)|(j==0)|(j==WY-1){
+				vx.(i).(j)=0.0
+				vx.(i+1).(j)=0.0
+				vy.(i).(j)=0.0
+				vy.(i).(j+1)=0.0
+			}
+		loop
+	loop
+	return
+//だいば－ジェンス計算
+*div
+	repeat WX-2
+		i=cnt+1
+		repeat WY-2
+			j=cnt+1
+			s.(i).(j)=( -vx.(i).(j) -vy.(i).(j) +vx.(i+1).(j) +vy.(i).(j+1) )/delta_t
+		loop
+	loop
+	return
+
+//圧力のポアソン方程式
+*poisson
+	//圧力データpは前回のタイムステップの情報を使いまわしている(warm stepとかいったような)。
+	//毎フレームごとにpの値を0に戻してないためが指数的に発散する可能性がある。
+	//次の修正項で使われるのはあくまで「圧力の差分」であるから、差分がかわらない限り、絶対値がどうかわろうと問題ない
+	//なのでガス抜きするのであれば、全pの平均を求めてすべてのp[i][j]から引くという作業を10タイムステップに1回くらいはおこなってもよいかもしれない
+	//前のタイムステップの情報を使いまわしたほうが早く収束する(それも1桁計算時間かわるレベルである)ため、この方法を採用している
+	repeat 100//反復回数。ここが100なのは適当。実際は一定残差まで収束したらbreakという処理
+		repeat WX-2
+			i=cnt+1
+			repeat WY-2
+				j=cnt+1
+				//もし壁なら、ijの圧力を代入
+				if (i==1):		p.(i-1).(j)=p.(i).(j)
+				if (i==WX-2):	p.(i+1).(j)=p.(i).(j)
+				if (j==1):		p.(i).(j-1)=p.(i).(j)
+				if (j==WY-2):	p.(i).(j+1)=p.(i).(j)
+				//ここがSOR
+				p.(i).(j)=(1.0-omega)*p.(i).(j) + omega/4.0*(p.(i-1).(j) + p.(i+1).(j) + p.(i).(j-1) + p.(i).(j+1) - s.(i).(j))
+			loop
+		loop
+	loop
+	return
+
+
+//修正項
+*rhs
+	repeat WX-2
+		i=cnt+1
+		repeat WY-2
+			j=cnt+1
+			vx.(i).(j)-=( p.(i).(j)-p.(i-1).(j) )*delta_t
+			vy.(i).(j)-=( p.(i).(j)-p.(i).(j-1) )*delta_t
+		loop
+	loop
+
+	return
+
+
+//可視化
+*view
+	rys.(counter\1024).0=1.0+0.01*rnd(100*(WX-2))
+	rys.(counter\1024).1=1.0+0.01*rnd(100*(WY-2))
+	counter++
+	
+	repeat 1024
+		xx=limitf(rys.cnt.0,0.0,1.0*WX-1.1)
+		yy=limitf(rys.cnt.1,0.0,1.0*WY-1.1)
+		ixx = int(xx);
+		iyy = int(yy);
+		sxx = xx - ixx;
+		syy = yy - iyy;
+		im1 = (ixx + 1) \ WX;
+		jm1 = ((iyy + 1) \ WY);
+		xx += (((1.0 - sxx)*vx.ixx.iyy + sxx * vx.im1.iyy)*(1.0 - syy) + ((1.0 - sxx)*vx.ixx.jm1 + sxx * vx.im1.jm1)*syy)*delta_t;
+		yy += (((1.0 - sxx)*vy.ixx.iyy + sxx * vy.im1.iyy)*(1.0 - syy) + ((1.0 - sxx)*vy.ixx.jm1 + sxx * vy.im1.jm1)*syy)*delta_t;
+		if (xx >= (1.0*WX - 1.1)) :xx = 0.0: yy = 0.0
+		if (yy >= (1.0*WY - 1.1)) :xx = 0.0: yy = 0.0
+		if (xx<0.0) : xx = 0.0: yy = 0.0
+		if (yy<1.1) : xx = 0.0: yy = 0.0
+		rys.cnt.0=xx
+		rys.cnt.1=yy
+	loop
+
+	
+	color 255,255,255
+	boxf
+	repeat WX
+		i=cnt
+		repeat WY
+			j=cnt
+			color limit(p.i.j*100.0,0,255),limit(-p.i.j*100.0,0,255),0
+			boxf i*40,j*40,i*40+40,j*40+40
+		loop
+	loop
+	
+	color 255,255,255
+	repeat 1024
+		pset rys.cnt.0*40.0,rys.cnt.1*40.0
+	loop
+	
+	redraw 1
+	redraw 0
+	title "step="+counter+"    発散確認用,vy[6][6]の速度="+vy.6.6+""
+	return
