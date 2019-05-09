@@ -45,7 +45,7 @@
 		repeat WY-2
 			j=cnt+1
 			u=vx.(i).(j)
-			v=( vx.(i-1).(j) + vx.(i).(j) + vx.(i-1).(j+1) + vx.(i).(j+1) )/4
+			v=( vy.(i-1).(j) + vy.(i).(j) + vy.(i-1).(j+1) + vy.(i).(j+1) )/4
 			//( ｕ>=0かつｖ>=0の場合 )
 			if (u>=0.0)&(v>=0.0){
 				vx_after.(i).(j) = vx.(i).(j) - u*(vx.(i).(j) - vx.(i-1).(j))*delta_t - v*(vx.(i).(j)-vx.(i).(j-1))*delta_t
@@ -69,7 +69,7 @@
 		i=cnt+1
 		repeat WY-2
 			j=cnt+1
-			u=( vy.(i).(j-1) + vy.(i+1).(j-1) + vy.(i).(j) + vy.(i+1).(j) )/4
+			u=( vx.(i).(j-1) + vx.(i+1).(j-1) + vx.(i).(j) + vx.(i+1).(j) )/4
 			v=vy.(i).(j)
 			//( ｕ>=0かつｖ>=0の場合 )
 			if (u>=0.0)&(v>=0.0){
