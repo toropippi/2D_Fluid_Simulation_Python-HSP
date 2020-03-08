@@ -108,6 +108,8 @@ public class FluidSimulation : MonoBehaviour {
 
         rhs(); // 修正
 
+        div(); // ダイバージェンス計算
+
         view(); // 可視化
 
     }
@@ -332,13 +334,13 @@ public class FluidSimulation : MonoBehaviour {
                     for (var z = 1; z < WZ - 1; z++) {
                         //もし壁なら、ijの圧力を代入
                         if (x == 1) p[x - 1, y, z] = p[x, y, z];
-                        if (x == WX - 1) p[x + 1, y, z] = p[x, y, z];
+                        if (x == WX - 2) p[x + 1, y, z] = p[x, y, z];
                         if (y == 1) p[x, y - 1, z] = p[x, y, z];
-                        if (y == WY - 1) p[x, y + 1, z] = p[x, y, z];
+                        if (y == WY - 2) p[x, y + 1, z] = p[x, y, z];
                         if (z == 1) p[x, y, z - 1] = p[x, y, z];
-                        if (z == WZ - 1) p[x, y, z + 1] = p[x, y, z];
+                        if (z == WZ - 2) p[x, y, z + 1] = p[x, y, z];
                         //ここがSOR
-                        p[x, y, z] = (1.0 - omega) * p[x, y, z] + omega / 8.0 * (p[x - 1, y, z] + p[x + 1, y, z] + p[x, y - 1, z] + p[x, y + 1, z] + p[x, y, z - 1] + p[x, y, z + 1] - s[x, y, z]);
+                        p[x, y, z] = (1.0 - omega) * p[x, y, z] + omega / 6.0 * (p[x - 1, y, z] + p[x + 1, y, z] + p[x, y - 1, z] + p[x, y + 1, z] + p[x, y, z - 1] + p[x, y, z + 1] - s[x, y, z]);
                     }
                 }
             }
@@ -353,7 +355,7 @@ public class FluidSimulation : MonoBehaviour {
             for (var y = 1; y < WY - 1; y++) {
                 for (var z = 1; z < WZ - 1; z++) {
                     vx[x, y, z] -= (p[x, y, z] - p[x - 1, y, z]) * delta_t;
-                    vy[z, y, z] -= (p[x, y, z] - p[x, y - 1, z]) * delta_t;
+                    vy[x, y, z] -= (p[x, y, z] - p[x, y - 1, z]) * delta_t;
                     vz[x, y, z] -= (p[x, y, z] - p[x, y, z - 1]) * delta_t;
                 }
             }
