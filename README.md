@@ -5,6 +5,7 @@ cfd.py：単体実行可能
   
 nabie01.hspとnabie01utf8.hspは同じ。単体実行可能。実行にはHSPインストールが必要。  
 クリックしたところの流速が変わる  
+![hsp](https://user-images.githubusercontent.com/44022497/87177306-663a1200-c316-11ea-843f-eb4052428bc7.jpg)
   
   UnityフォルダのほうはC#移植版となっている
   ![mudai](https://user-images.githubusercontent.com/44022497/87177158-28d58480-c316-11ea-9429-a61eb6fe8161.jpg)
